@@ -17,7 +17,14 @@ class TestSyntheticDatasetGeneration(unittest.TestCase):
         # Get the project root directory (where data folder should be)
         cls.project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         cls.data_dir = os.path.join(cls.project_root, 'data')
-        
+
+        cls.vehicle_type = os.getenv("TEST_VEHICLE")
+        cls.initial_speed = os.getenv("TEST_INITIAL_SPEED")
+        cls.minutes = os.getenv("TEST_MINUTES")
+        cls.anomaly_type = os.getenv("TEST_ANOMALY_TYPE")
+        cls.anomaly_duration = os.getenv("TEST_ANOMALY_DURATION")
+        cls.anomaly_probability = os.getenv("TEST_ANOMALY_PROBABILITY")
+
         # Define test directory structure inside the data folder
         cls.data_subdirs = {
             'training': os.path.join(cls.data_dir, "training"),
@@ -25,9 +32,9 @@ class TestSyntheticDatasetGeneration(unittest.TestCase):
             'testing': os.path.join(cls.data_dir, "testing")
         }
         
-        cls.vehicle_arg = "Truck:80"
-        cls.minutes = 120
-        cls.anomalies = ["WheelSlip:5:0.01"]
+        cls.vehicle_arg = f"{cls.vehicle_type}:{cls.initial_speed}"
+        cls.minutes = cls.minutes
+        cls.anomalies = [f"{cls.anomaly_type}:{cls.anomaly_duration}:{cls.anomaly_probability}"]
         
         # Define test file paths
         cls.test_files = {

@@ -65,7 +65,9 @@ def parse_anomalies_arg(arg):
 
 def main():
     """
-    This script generates synthetic telemetry data for a specified vehicle type over a given duration.
+    Command-line interface for generating synthetic telemetry data.
+
+    This function parses command-line arguments to generate the data for a specified vehicle type over a given duration.
     It optionally introduces anomalies (e.g., wheel slip, GPS loss) with user-defined probabilities
     and durations. The final dataset is saved as a CSV file with optional labels.
     """
