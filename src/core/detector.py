@@ -39,7 +39,7 @@ class AnomalyDetector:
         self.model.eval()
 
         # A coefficient to tweak the threshold value obtained during training
-        self.threshold_coefficient = int(os.getenv("THRESHOLD_COEFFICIENT", 1))
+        self.threshold_coefficient = float(os.getenv("THRESHOLD_COEFFICIENT", 1.0))
 
         # Window size to pad predictions
         self.window_size = int(os.getenv("WINDOW_SIZE"))
@@ -115,10 +115,10 @@ class AnomalyDetector:
         intervals = find_true_sublists(predictions)
         timestamps_intervals = construct_time_intervals(timestamps, intervals)
         return timestamps_intervals
-
-    def create_file(self, input_file: str, output_file: str) -> None:
+    
+    def process_csv_file(self, input_file: str) -> pd.DataFrame:
         """
-        Processes a CSV file to detect anomalies and saves the results to a new CSV file.
+        Processes a CSV file to detect anomalies and returns a Pandas DataFrame.
 
         Adds a 'pred' column to the input DataFrame with boolean anomaly predictions and saves
         the modified DataFrame to the output file.
@@ -134,5 +134,12 @@ class AnomalyDetector:
         elif len(padded_predictions) < n_rows:
             padded_predictions += [False] * (n_rows - len(padded_predictions))
         df['pred'] = padded_predictions
-        df.to_csv(output_file, index=False)
-        
+        return df        
+    
+    def create_file(self, input_file: str, output_file: str) -> None:
+        """
+        Saves the Pandas DataFrame to results to a new CSV file.
+        """
+
+        labeled_dataframe = self.process_csv_file(input_file)
+        labeled_dataframe.to_csv(output_file, index=False)

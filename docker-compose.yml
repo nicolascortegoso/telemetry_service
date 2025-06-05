@@ -58,6 +58,26 @@ services:
     volumes:
       - ./logs/tensorboard:/logs
 
+  api:
+    container_name: api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    working_dir: /app
+    volumes:
+      - ./api:/app/api
+      - ./src:/app/src
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app:/app/src:/app/api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - app
+
 volumes:
   data:
   src:
