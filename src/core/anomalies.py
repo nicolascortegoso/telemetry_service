@@ -15,8 +15,8 @@ class Anomaly(ABC):
 
     def __init__(self, duration: int, probability: float, ):
         self.duration = duration
-        self.probability = probability
-        self.active_counter = 0  # Tracks how many seconds the anomaly should still apply
+        self.probability = probability / duration   # We divide the probability by duration to mantain the proportion
+        self.active_counter = 0                     # Tracks how many seconds the anomaly should still apply
 
     def should_apply(self) -> bool:
         if self.active_counter > 0:

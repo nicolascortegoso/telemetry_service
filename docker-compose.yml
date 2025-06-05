@@ -1,9 +1,9 @@
-version: '3.9'
-
 services:
   app:
     container_name: telemetry_service
-    build: .
+    build:
+      context: .
+      dockerfile: src/Dockerfile
     working_dir: /app
     volumes:
       - ./src:/app/src
@@ -13,3 +13,17 @@ services:
       - PYTHONPATH=.
     tty: true
     stdin_open: true
+  tests:
+    container_name: telemetry_tests
+    build:
+      context: .
+      dockerfile: src/Dockerfile
+    working_dir: /app
+    command: ["python", "-m", "unittest", "discover", "-s", "tests"]
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app

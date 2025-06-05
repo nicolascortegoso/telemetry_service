@@ -150,7 +150,8 @@ def main():
             anomaly_classes[anomaly](duration=duration, probability=probability)
             for anomaly, duration, probability in args.anomalies
         ]
-        telemetry = introduce_anomalies(telemetry_data, anomalies, include_labels)
+        # Modify the data in place
+        introduce_anomalies(telemetry_data, anomalies, include_labels)
 
     # Create csv file
     create_file_csv(telemetry_data, output_file=args.output)
