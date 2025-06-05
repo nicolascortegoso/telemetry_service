@@ -2,12 +2,14 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.preprocessing import StandardScaler
-from torch.utils.tensorboard import SummaryWriter
 import plotly.graph_objects as go
 import os
 import pickle
 import json
+from sklearn.preprocessing import StandardScaler
+from torch.utils.tensorboard import SummaryWriter
+from typing import Tuple
+
 from src.core.models.model import LSTMAutoencoder
 
 
@@ -25,8 +27,11 @@ else:
     device = torch.device("cpu")
 
 
-# Preprocessing function
-def preprocess_data(file_path, window_size=10):
+def preprocess_data(file_path: str, window_size: int = 10) -> Tuple[np.ndarray, StandardScaler]:
+    """
+    Reads CSV, normalizes features, and returns windowed sequences and the scaler.
+    """
+    
     df = pd.read_csv(file_path)
     features = df[['wheel_rpm', 'speed', 'distance']].values
     scaler = StandardScaler()
@@ -39,8 +44,17 @@ def preprocess_data(file_path, window_size=10):
     
     return sequences, scaler
 
-# Training function
-def train_model(model, train_data, val_data, epochs=50, batch_size=32):
+def train_model(
+        model: nn.Module,
+        train_data: torch.Tensor,
+        val_data:torch.Tensor,
+        epochs: int = 50,
+        batch_size: int = 32
+    ) -> nn.Module:
+    """
+    Trains the model and logs losses to TensorBoard.
+    """
+        
     writer = SummaryWriter('logs/tensorboard')
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.MSELoss()
@@ -81,7 +95,7 @@ def train_model(model, train_data, val_data, epochs=50, batch_size=32):
     return model
 
 # Compute anomaly threshold
-def compute_threshold(model, val_data):
+def compute_threshold(model: nn.Module, val_data: torch.Tensor) -> float:
     model.eval()
     errors = []
     with torch.no_grad():
@@ -93,8 +107,16 @@ def compute_threshold(model, val_data):
     threshold = np.mean(errors) + 2 * np.std(errors)
     return threshold
 
-# Plot reconstruction errors with Plotly
-def plot_reconstruction_errors(val_data, model, threshold, output_path):
+def plot_reconstruction_errors(
+    val_data: torch.Tensor,
+    model: nn.Module,
+    threshold: float,
+    output_path: str
+    ) -> None:
+    """
+    Plots reconstruction errors with threshold line and saves as HTML.
+    """
+    
     model.eval()
     errors = []
     with torch.no_grad():
@@ -139,8 +161,12 @@ def main():
     # Initialize model
     model = LSTMAutoencoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
     
+    # Training parameters
+    training_epochs = int(os.getenv("TRAINING_EPOCHS", 50))
+    batch_size = int(os.getenv("BATCH_SIZE", 32))
+
     # Train model
-    model = train_model(model, train_data, val_data)
+    model = train_model(model, train_data, val_data, training_epochs, batch_size)
     
     # Save model and scaler
     torch.save(model.state_dict(), model_path)

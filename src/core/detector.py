@@ -39,7 +39,7 @@ class AnomalyDetector:
         self.model.eval()
 
         # A coefficient to tweak the threshold value obtained during training
-        self.threshold_coefficient = int(os.getenv("THRESHOLD_COEFFICIENT", 1))
+        self.threshold_coefficient = float(os.getenv("THRESHOLD_COEFFICIENT", 1.0))
 
         # Window size to pad predictions
         self.window_size = int(os.getenv("WINDOW_SIZE"))
