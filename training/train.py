@@ -166,12 +166,10 @@ def main():
     model = LSTMAutoencoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
     
     # Training parameters
-    training_epochs = int(os.getenv("TRAINING_EPOCHS", 50))
-    batch_size = int(os.getenv("BATCH_SIZE", 32))
-
-    # Train model
     epochs = config['training']['epochs']
     batch_size = config['training']['batch_size']
+
+    # Train model
     model = train_model(model, train_data, val_data, epochs, batch_size)
     
     # Save model and scaler
@@ -191,6 +189,7 @@ def main():
     print(f"Scaler saved to {scaler_path}")
     print(f"Threshold saved to {threshold_path}")
     print(f"Plot saved to {plot_path}")
+
 
 if __name__ == "__main__":
     main()
