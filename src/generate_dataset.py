@@ -5,6 +5,10 @@ from src.core.vehicles import get_vehicle_classes
 from src.core.telemetry import Telemetry
 from src.core.anomalies import get_anomaly_classes
 from src.core.utils import introduce_anomalies, create_file_csv
+from src.core.config import get_config
+
+
+config = get_config()
 
 
 def parse_vehicle_arg(value: str):
@@ -32,7 +36,7 @@ def parse_minutes_arg(value):
         ivalue = int(value)
     except ValueError:
         raise argparse.ArgumentTypeError("Minutes must be an integer.")
-    if ivalue < 60:
+    if ivalue < config['timeseries']['min_minutes']:
         raise argparse.ArgumentTypeError("Minimum value for --minutes is 60.")
     return ivalue
 

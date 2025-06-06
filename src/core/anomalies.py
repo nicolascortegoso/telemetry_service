@@ -69,7 +69,9 @@ class GPSLoss(Anomaly):
         # Set distance to zero to simulate GPS loss
         if self.active_counter == 0:
             self.active_counter = self.duration
+        
         data_point["distance"] = 0
+        self.active_counter -= 1
         
         return data_point
 

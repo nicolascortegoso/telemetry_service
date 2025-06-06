@@ -2,6 +2,10 @@ from datetime import datetime, timedelta
 from typing import Dict, List
 
 from src.core.telemetry import Telemetry
+from src.core.config import get_config
+
+
+config = get_config()
 
 
 def generate_clean_telemetry_data(telemetry: Telemetry, minutes: int, start_time: datetime = None) -> List[Dict[str, float]]:
@@ -25,7 +29,7 @@ def generate_clean_telemetry_data(telemetry: Telemetry, minutes: int, start_time
         start_time = datetime.now()
     
     # Generates telemetry at intervals of at least 60 minutes
-    minutes = minutes if minutes > 60 else 60
+    minutes = minutes if minutes >= config['timeseries']['min_minutes'] else config['timeseries']['min_minutes']
     # Intervals ​​are simulated in 1 second increments.
     intervals = 60 * minutes
 

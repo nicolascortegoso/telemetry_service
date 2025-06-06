@@ -75,7 +75,7 @@ options:
 Пример создания файла с синтетическими данными:
 
 ```
-python src/generate_dataset.py --vehicle Car:100 --minutes 200
+python src/generate_dataset.py --vehicle Car:100 --minutes 60 --anomalies GPSLoss:3:0.05 --labels --output data/training/train_Car:100_60_GPSLoss:3:0.05_labels.csv
 ```
 
 
