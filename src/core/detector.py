@@ -4,7 +4,6 @@ import json
 import pandas as pd
 import numpy as np
 from typing import List
-import os
 
 from src.core.models.model import LSTMAutoencoder
 from src.core.utils import find_true_sublists, construct_time_intervals
@@ -15,34 +14,34 @@ class AnomalyDetector:
     A class for detecting anomalies in time-series data using an LSTM Autoencoder model.
     """
 
-    def __init__(self):
+    def __init__(self, 
+                 input_dim: int, 
+                 hidden_dim: int,
+                 num_layers: int,
+                 model_weights_path: str,
+                 scaler_path: str,
+                 threshold_path: str,
+                 threshold_coefficient: float,
+                 window_size: int,
+                 device: str = 'cpu'
+        ):
         """
         Initializes the AnomalyDetector with an LSTM Autoencoder model and configurations.
 
         Loads model parameters, scaler, and threshold from environment variables and files.
-        The model is set to evaluation mode on the CPU.
         """
 
-        # Load configuration from environment variables
-        input_dim = int(os.getenv("INPUT_DIM"))
-        hidden_dim = int(os.getenv("HIDDEN_DIM"))
-        num_layers = int(os.getenv("NUM_LAYERS"))
-        model_weights_path = os.getenv("MODEL_WEIGHTS_PATH")
-        scaler_path = os.getenv("SCALER_PATH")
-        threshold_path = os.getenv("THRESHOLD_PATH")
-
-        # Initialize device, model and load weights
-        self.device = 'cpu'
+        self.device = device
         self.model = LSTMAutoencoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers)
         self.model.load_state_dict(torch.load(model_weights_path, map_location=self.device, weights_only=True))
         self.model.to(self.device)
         self.model.eval()
 
         # A coefficient to tweak the threshold value obtained during training
-        self.threshold_coefficient = float(os.getenv("THRESHOLD_COEFFICIENT", 1.0))
+        self.threshold_coefficient = threshold_coefficient
 
         # Window size to pad predictions
-        self.window_size = int(os.getenv("WINDOW_SIZE"))
+        self.window_size = window_size
 
         # Load scaler 
         with open(scaler_path, 'rb') as f:
@@ -115,10 +114,10 @@ class AnomalyDetector:
         intervals = find_true_sublists(predictions)
         timestamps_intervals = construct_time_intervals(timestamps, intervals)
         return timestamps_intervals
-
-    def create_file(self, input_file: str, output_file: str) -> None:
+    
+    def process_csv_file(self, input_file: str) -> pd.DataFrame:
         """
-        Processes a CSV file to detect anomalies and saves the results to a new CSV file.
+        Processes a CSV file to detect anomalies and returns a Pandas DataFrame.
 
         Adds a 'pred' column to the input DataFrame with boolean anomaly predictions and saves
         the modified DataFrame to the output file.
@@ -134,5 +133,12 @@ class AnomalyDetector:
         elif len(padded_predictions) < n_rows:
             padded_predictions += [False] * (n_rows - len(padded_predictions))
         df['pred'] = padded_predictions
-        df.to_csv(output_file, index=False)
-        
+        return df        
+    
+    def create_file(self, input_file: str, output_file: str) -> None:
+        """
+        Saves the Pandas DataFrame to results to a new CSV file.
+        """
+
+        labeled_dataframe = self.process_csv_file(input_file)
+        labeled_dataframe.to_csv(output_file, index=False)

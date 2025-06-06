@@ -8,6 +8,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
     env_file:
       - .env
     environment:
@@ -28,6 +29,7 @@ services:
       - ./src:/app/src
       - ./tests:/app/tests
       - ./data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app
@@ -37,11 +39,13 @@ services:
     build:
       context: .
       dockerfile: training/Dockerfile
+    profiles: ["manual"]
     working_dir: /app
     volumes:
       - ./data:/app/data
       - ./src:/app/src
       - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
     env_file:
       - .env
     environment:
@@ -57,6 +61,27 @@ services:
       - "6006:6006"
     volumes:
       - ./logs/tensorboard:/logs
+
+  api:
+    container_name: api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    working_dir: /app
+    volumes:
+      - ./api:/app/api
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app:/app/src:/app/api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - app
 
 volumes:
   data:

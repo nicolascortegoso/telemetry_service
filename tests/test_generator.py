@@ -1,4 +1,5 @@
 import unittest
+import yaml
 from unittest.mock import MagicMock
 from datetime import datetime, timedelta
 
@@ -7,6 +8,7 @@ from src.core.telemetry import Telemetry
 
 
 class TestGenerateCleanTelemetryData(unittest.TestCase):
+    
     def setUp(self):
         # Create a mock telemetry instance
         self.mock_telemetry = Telemetry(vehicle=None)
@@ -18,13 +20,20 @@ class TestGenerateCleanTelemetryData(unittest.TestCase):
             "distance": 22.22,
         })
 
+    @classmethod
+    def setUpClass(cls):
+        # Runs once before all test methods
+        with open("config.yaml", "r") as f:
+            config = yaml.safe_load(f)
+        cls.min_minutes = config['timeseries']['min_minutes']
+
     def test_length_of_data(self):
         # Request less than 60 minutes to test minimum duration
         data = generate_clean_telemetry_data(self.mock_telemetry, minutes=30)
-        self.assertEqual(len(data), 60 * 60)  # minimum 60 minutes
+        self.assertEqual(len(data), self.min_minutes * 60)
 
         data = generate_clean_telemetry_data(self.mock_telemetry, minutes=120)
-        self.assertEqual(len(data), 120 * 60)  # 120 minutes
+        self.assertEqual(len(data), (self.min_minutes * 2) * 60)  # 120 minutes
 
     def test_timestamps_increment(self):
         start = datetime(2025, 6, 5, 12, 0, 0)
