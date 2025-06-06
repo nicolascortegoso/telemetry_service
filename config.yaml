@@ -1,0 +1,47 @@
+vehicle:
+  type: Truck
+  initial_speed: 80
+
+timeseries:  
+  minutes: 120
+  min_minutes: 60
+
+anomaly:
+  type: WheelSlip
+  duration: 5
+  probability: 0.01
+
+training:
+  random_seed: 42
+  epochs: 20
+  batch_size: 64
+
+inference:
+  device: cpu
+
+model:
+  hidden_dim: 8
+  num_layers: 1
+  input_dim: 3
+  window_size: 120
+
+paths:
+  default_output_file_csv: synthetic_dataset.csv
+  model_weights: src/core/models/lstm_autoencoder.pt
+  scaler: src/core/models/scaler.pkl
+  threshold: src/core/models/threshold.json
+  logs_recons_errors: logs/reconstruction_errors.html
+  training_data: data/testing/test_Truck:80_120_WheelSlip:5:0.01.csv
+  validation_data: data/validation/val_Truck:80_120.csv
+
+threshold:
+  coefficient: 0.5
+
+
+endpoint_generate_dataset:
+  summary: Synthetic dataset creation
+  description: Generates synthetic time series according to the given parameters and outputs it as a CSV file.
+
+endpoint_anomaly_detector:
+  summary: Anomaly detection
+  description: Detects anomalies in a time series. It returns a list of time intervals, where the first timestamp indicates when the anomaly started, and the upper bound indicates when it stopped (not inclusive). If a filename is passed as a parameter, it outputs the results as a downloadable file.

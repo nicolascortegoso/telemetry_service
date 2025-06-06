@@ -2,18 +2,25 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.preprocessing import StandardScaler
-from torch.utils.tensorboard import SummaryWriter
 import plotly.graph_objects as go
 import os
 import pickle
 import json
+import yaml
+
+from sklearn.preprocessing import StandardScaler
+from torch.utils.tensorboard import SummaryWriter
+
 from src.core.models.model import LSTMAutoencoder
 
 
+with open("config.yaml", "r") as f:
+    config = yaml.safe_load(f)
+
+
 # Set random seed for reproducibility
-torch.manual_seed(42)
-np.random.seed(42)
+torch.manual_seed(config['training']['random_seed'])
+np.random.seed(config['training']['random_seed'])
 
 
 # Select the best available device
@@ -113,18 +120,18 @@ def plot_reconstruction_errors(val_data, model, threshold, output_path):
 # Main function
 def main():
 
-    window_size = int(os.getenv("WINDOW_SIZE", 60))
-    hidden_dim = int(os.getenv("HIDDEN_DIM", 32))
-    num_layers = int(os.getenv("NUM_LAYERS", 1))
-    input_dim = int(os.getenv("INPUT_DIM", 3))
+    window_size = config['model']['window_size']
+    hidden_dim = config['model']['hidden_dim']
+    num_layers = config['model']['num_layers']
+    input_dim = config['model']['input_dim']
 
     # Paths
-    train_data_path = os.getenv("TRAINING_DATA")
-    val_data_path = os.getenv("VALIDATION_DATA")
-    model_path = os.getenv("MODEL_WEIGHTS_PATH")
-    scaler_path = os.getenv("SCALER_PATH")
-    threshold_path = os.getenv("THRESHOLD_PATH")
-    plot_path = os.getenv("LOGS_RECONS_ERRORS")
+    train_data_path = config['paths']['training_data']
+    val_data_path = config['paths']['validation_data']
+    model_path = config['paths']['model_weights']
+    scaler_path = config['paths']['scaler']
+    threshold_path = config['paths']['threshold']
+    plot_path = config['paths']['logs_recons_errors']
     
     # Create directories
     os.makedirs('src/core/models', exist_ok=True)
@@ -140,7 +147,9 @@ def main():
     model = LSTMAutoencoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers).to(device)
     
     # Train model
-    model = train_model(model, train_data, val_data)
+    epochs = config['training']['epochs']
+    batch_size = config['training']['batch_size']
+    model = train_model(model, train_data, val_data, epochs, batch_size)
     
     # Save model and scaler
     torch.save(model.state_dict(), model_path)

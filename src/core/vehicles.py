@@ -21,12 +21,11 @@ class Vehicle(ABC):
         speed_variation: float,
         wheel_diameter: float
     ):
-        self.speed = initial_speed              # Current speed in km/h
+        self.speed = initial_speed if initial_speed > 0 else 0   # Current speed in km/h
         self.min_speed = min_speed
         self.max_speed = max_speed
         self.speed_variation = speed_variation
-        self.wheel_diameter = wheel_diameter    # In meters
-
+        self.wheel_diameter = wheel_diameter                     # In meters
 
     def update_speed(self):
         """Apply random delta to the speed."""

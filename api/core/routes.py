@@ -10,6 +10,7 @@ from src.core.telemetry import Telemetry
 from src.core.generator import generate_clean_telemetry_data
 from src.core.detector import AnomalyDetector
 from src.core.utils import introduce_anomalies
+from src.core.config import get_config
 
 from api.core.models import CreateSyntheticTelemetry
 from api.core.utils import create_csv_in_memory, return_csv_buffer
@@ -17,8 +18,36 @@ from api.core.utils import create_csv_in_memory, return_csv_buffer
 
 router = APIRouter()
 
+# Load configuration from environment variables
+config = get_config()
+input_dim = config['model']['input_dim']
+hidden_dim = config['model']['hidden_dim']
+num_layers = config['model']['num_layers']
+model_weights_path = config['paths']['model_weights']
+scaler_path = config['paths']['scaler']
+threshold_path = config['paths']['threshold']
+threshold_coefficient = config['threshold']['coefficient']
+window_size = config['model']['window_size']
+device = config['inference']['device']
 
-@router.post("/generate_dataset/", summary="Synthetic dataset creation")
+# Instantiate the anomaly detector
+detector = AnomalyDetector(
+    input_dim,
+    hidden_dim,
+    num_layers,
+    model_weights_path,
+    scaler_path,
+    threshold_path,
+    threshold_coefficient,
+    window_size,
+    device
+)
+
+
+@router.post("/generate_dataset/", 
+             summary=config['endpoint_generate_dataset']['summary'],
+             description=config['endpoint_generate_dataset']['description']
+)
 def generate_dataset(data: CreateSyntheticTelemetry):
 
     # Instantiate vehicle type
@@ -59,7 +88,10 @@ def generate_dataset(data: CreateSyntheticTelemetry):
     return Response(content=csv_content, headers=headers, media_type='text/csv')
 
 
-@router.post("/anomaly_detector/", summary="Anomaly detection")
+@router.post("/anomaly_detector/",
+             summary=config['endpoint_anomaly_detector']['summary'],
+             description=config['endpoint_anomaly_detector']['description']
+)
 async def anomaly_detector(
     file: UploadFile = File(...),
     output: Optional[str] = Form(None)
@@ -72,9 +104,6 @@ async def anomaly_detector(
     # Read uploaded file into a temporary file
     contents = await file.read()
     input_buffer = BytesIO(contents)
-
-    # Instantiate the anomaly detector
-    detector = AnomalyDetector()
 
     if output:
         # Use decorated version of the method

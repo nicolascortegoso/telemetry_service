@@ -2,6 +2,7 @@ import unittest
 import os
 import random
 import sys
+import yaml
 from unittest.mock import patch
 
 # Import your main script functions
@@ -9,6 +10,7 @@ from src.core.generator import generate_clean_telemetry_data
 from src.core.vehicles import get_vehicle_classes
 from src.core.anomalies import get_anomaly_classes
 from src.core.utils import introduce_anomalies, create_file_csv
+
 
 class TestSyntheticDatasetGeneration(unittest.TestCase):
     @classmethod
@@ -18,12 +20,15 @@ class TestSyntheticDatasetGeneration(unittest.TestCase):
         cls.project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         cls.data_dir = os.path.join(cls.project_root, 'data')
 
-        cls.vehicle_type = os.getenv("TEST_VEHICLE")
-        cls.initial_speed = os.getenv("TEST_INITIAL_SPEED")
-        cls.minutes = os.getenv("TEST_MINUTES")
-        cls.anomaly_type = os.getenv("TEST_ANOMALY_TYPE")
-        cls.anomaly_duration = os.getenv("TEST_ANOMALY_DURATION")
-        cls.anomaly_probability = os.getenv("TEST_ANOMALY_PROBABILITY")
+        with open("config.yaml", "r") as f:
+            config = yaml.safe_load(f)
+
+        cls.vehicle_type = config['vehicle']['type']
+        cls.initial_speed = config['vehicle']['initial_speed']
+        cls.minutes = config['timeseries']['minutes']
+        cls.anomaly_type = config['anomaly']['type']
+        cls.anomaly_duration = config['anomaly']['duration']
+        cls.anomaly_probability = config['anomaly']['probability']
 
         # Define test directory structure inside the data folder
         cls.data_subdirs = {
@@ -33,7 +38,6 @@ class TestSyntheticDatasetGeneration(unittest.TestCase):
         }
         
         cls.vehicle_arg = f"{cls.vehicle_type}:{cls.initial_speed}"
-        cls.minutes = cls.minutes
         cls.anomalies = [f"{cls.anomaly_type}:{cls.anomaly_duration}:{cls.anomaly_probability}"]
         
         # Define test file paths

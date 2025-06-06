@@ -3,11 +3,15 @@ from typing import List, Optional
 
 from src.core.vehicles import get_vehicle_classes
 from src.core.anomalies import get_anomaly_classes
+from src.core.config import get_config
+
+
+config = get_config()
 
 
 class Vehicle(BaseModel):
     type: str
-    initial_speed: int
+    initial_speed: conint(gt=0)
 
     @validator("type")
     def type_must_be_allowed(cls, v):
@@ -35,8 +39,8 @@ class Anomaly(BaseModel):
 
 
 class CreateSyntheticTelemetry(BaseModel):
-    minutes: conint(gt=59) = 60                         # default 60, must be > 59
+    minutes: conint(gt=config['timeseries']['min_minutes'] - 1) = config['timeseries']['min_minutes']
     vehicle: Vehicle
-    anomalies: Optional[List[Anomaly]] = None           # Optional field with default None
-    labels: Optional[bool] = None                       # Optional field with default None
-    output: Optional[str] = "synthetic_dataset.csv"     # Optional field with default filename
+    anomalies: Optional[List[Anomaly]] = None                           # Optional field with default None
+    labels: Optional[bool] = None                                       # Optional field with default None
+    output: Optional[str] = config['paths']['default_output_file_csv']
