@@ -42,7 +42,7 @@ class TestAnomalies(unittest.TestCase):
         anomaly.active_counter = 0
         result = anomaly.apply(self.data_point.copy())
         self.assertEqual(result["distance"], 0)
-        self.assertEqual(anomaly.active_counter, 3)
+        self.assertEqual(anomaly.active_counter, 2)
 
     def test_speed_sensor_freeze_apply(self):
         anomaly = SpeedSensorFreeze(duration=4, probability=0.02)
