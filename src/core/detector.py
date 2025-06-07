@@ -1,144 +1,109 @@
 import torch
-import pickle
-import json
-import pandas as pd
 import numpy as np
-from typing import List
+import pandas as pd
+from torch.utils.data import DataLoader, TensorDataset
+from scipy.ndimage import label
 
 from src.core.models.model import LSTMAutoencoder
-from src.core.utils import find_true_sublists, construct_time_intervals
 
 
 class AnomalyDetector:
-    """
-    A class for detecting anomalies in time-series data using an LSTM Autoencoder model.
-    """
-
-    def __init__(self, 
-                 input_dim: int, 
-                 hidden_dim: int,
-                 num_layers: int,
-                 model_weights_path: str,
-                 scaler_path: str,
-                 threshold_path: str,
-                 threshold_coefficient: float,
-                 window_size: int,
-                 device: str = 'cpu'
-        ):
+    def __init__(
+        self,
+        model_path: str,
+        batch_size: int,
+        device: str,
+    ):
         """
-        Initializes the AnomalyDetector with an LSTM Autoencoder model and configurations.
+        Initializes the anomaly detector with the saved model and threshold.
 
-        Loads model parameters, scaler, and threshold from environment variables and files.
+        Args:
+            model_path (str): Path to saved model.
+            batch_size (int): Batch size for inference.
+            device (str): Device ('cuda', 'mps' or 'cpu').
         """
 
-        self.device = device
-        self.model = LSTMAutoencoder(input_dim=input_dim, hidden_dim=hidden_dim, num_layers=num_layers)
-        self.model.load_state_dict(torch.load(model_weights_path, map_location=self.device, weights_only=True))
-        self.model.to(self.device)
+        # Load checkpoint
+        checkpoint = torch.load(model_path, map_location=device)
+        self.params = checkpoint['params']
+        self.window_size = self.params['window_size']
+        self.step_size = self.params['step_size']
+        self.input_size = self.params['input_size']
+        self.hidden_dim = self.params['hidden_dim']
+        self.scaler = checkpoint['scaler']
+        self.threshold = checkpoint['threshold']
+
+        # Initialize model
+        self.model = LSTMAutoencoder(input_dim=self.input_size, hidden_dim=self.hidden_dim, num_layers=1).to(device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
         self.model.eval()
 
-        # A coefficient to tweak the threshold value obtained during training
-        self.threshold_coefficient = threshold_coefficient
+        # Set inference parameters
+        self.batch_size = batch_size
+        self.device = device
 
-        # Window size to pad predictions
-        self.window_size = window_size
-
-        # Load scaler 
-        with open(scaler_path, 'rb') as f:
-            self.scaler = pickle.load(f)
-
-        #Load threshold
-        with open(threshold_path, 'r') as f:
-            self.threshold = json.load(f)['threshold'] * self.threshold_coefficient
-
-    def preprocess(self, df: pd.DataFrame, window_size: int) -> torch.Tensor:
+    def inference(
+        self,
+        data_file: str,
+        output_dir: str = "logs/inference"
+    ) -> tuple:
         """
-        Preprocesses a DataFrame to create sequences of scaled features for the LSTM model.
-
-        Extracts specified features, scales them using the loaded scaler, and creates sliding window
-        sequences of the specified size.
+        Runs inference on new data, detects anomalies, and saves predictions to CSV.
 
         Args:
-            df (pd.DataFrame): Input DataFrame containing columns 'wheel_rpm', 'speed', and 'distance'.
-            window_size (int): The size of the sliding window for creating sequences.
+            data_file (str): Path to new data CSV (with 'wheel_rpm', 'speed', 'distance').
+            output_dir (str): Directory to save predictions CSV.
 
         Returns:
-            torch.Tensor: A tensor of shape (n_sequences, window_size, n_features) containing the
-                scaled feature sequences.
+            tuple: Sequence-level predictions, time step-level predictions, and MAE scores.
         """
 
-        features = df[['wheel_rpm', 'speed', 'distance']].values
-        features_scaled = self.scaler.transform(features)
-        sequences = []
-        for i in range(len(features_scaled) - window_size + 1):
-            sequences.append(features_scaled[i:i + window_size])
-        sequences_array = np.array(sequences)  # Combine list of arrays into one numpy array
-        return torch.FloatTensor(sequences_array)
+        # Preprocess new data
+        new_df = pd.read_csv(data_file)
+        if 'timestamp' not in new_df.columns:
+            raise ValueError("Input CSV must contain a 'timestamp' column")
+        timestamps = pd.to_datetime(new_df['timestamp'])
+        new_features = new_df[['wheel_rpm', 'speed', 'distance']].values
+        new_features_scaled = self.scaler.transform(new_features)
 
-    def detect(self, sequences: torch.Tensor) -> List[bool]:
-        """
-        Detects anomalies in the input sequences using the LSTM Autoencoder model.
+        # Generate sequences
+        new_sequences = []
+        for i in range(0, len(new_features_scaled) - self.window_size + 1, self.step_size):
+            new_sequences.append(new_features_scaled[i:i + self.window_size])
+        new_sequences = np.array(new_sequences)
+        new_tensor = torch.tensor(new_sequences, dtype=torch.float32).to(self.device)
+        new_loader = DataLoader(TensorDataset(new_tensor, new_tensor), batch_size=self.batch_size, shuffle=False)
 
-        Computes the reconstruction error for each sequence and compares it to the threshold.
-
-        Args:
-            sequences (torch.Tensor): A tensor of shape (n_sequences, window_size, n_features)
-                containing the input sequences.
-
-        Returns:
-            List[bool]: A list of boolean values indicating whether each sequence is an anomaly
-                (True if error > threshold, False otherwise).
-        """
-
-        errors = []
+        # Run inference
+        sequence_mae = []
         with torch.no_grad():
-            for seq in sequences:
-                seq = seq.unsqueeze(0).to(self.device)
-                output = self.model(seq)
-                error = torch.mean((output - seq) ** 2).item()
-                errors.append(error)
-        return [e > self.threshold for e in errors]
+            for batch_x, _ in new_loader:
+                output = self.model(batch_x)
+                mae = torch.mean(torch.abs(output - batch_x), dim=(1, 2)).cpu().numpy()
+                sequence_mae.extend(mae)
+        sequence_mae = np.array(sequence_mae)
 
-    def anomaly_intervals(self, input_file: str) -> List:
-        """
-        Identifies time intervals of anomalies in a CSV file using the LSTM Autoencoder model.
+        # Detect anomalies
+        sequence_predictions = (sequence_mae > self.threshold).astype(int)
 
-        Reads the input file, preprocesses the data, detects anomalies, and returns the timestamp
-        intervals corresponding to consecutive anomaly sequences.
-        """
+        # Map sequence predictions to time steps
+        time_step_predictions = np.zeros(len(new_features))
+        for i, idx in enumerate(range(0, len(new_features_scaled) - self.window_size + 1, self.step_size)):
+            if sequence_predictions[i] == 1:
+                time_step_predictions[idx:idx + self.window_size] = 1
 
-        df = pd.read_csv(input_file)
-        timestamps = df.pop('timestamp')
-        sequences = self.preprocess(df, self.window_size)
-        predictions = self.detect(sequences)
-        intervals = find_true_sublists(predictions)
-        timestamps_intervals = construct_time_intervals(timestamps, intervals)
-        return timestamps_intervals
-    
-    def process_csv_file(self, input_file: str) -> pd.DataFrame:
-        """
-        Processes a CSV file to detect anomalies and returns a Pandas DataFrame.
+        # Identify anomaly intervals
+        labeled_array, num_features = label(time_step_predictions)
+        anomaly_intervals = []
+        for i in range(1, num_features + 1):
+            segment = (labeled_array == i)
+            indices = np.where(segment)[0]
+            if len(indices) > 0:
+                start_ts = timestamps[indices[0]].strftime('%Y-%m-%d %H:%M:%S')
+                end_ts = timestamps[indices[-1]].strftime('%Y-%m-%d %H:%M:%S')
+                anomaly_intervals.append({"start": start_ts, "end": end_ts})
 
-        Adds a 'pred' column to the input DataFrame with boolean anomaly predictions and saves
-        the modified DataFrame to the output file.
-        """
+        output_df = new_df.copy()
+        output_df['predicted'] = time_step_predictions.astype(bool)
 
-        df = pd.read_csv(input_file)
-        n_rows = df.shape[0]
-        sequences = self.preprocess(df, self.window_size)
-        predictions = self.detect(sequences)
-        padded_predictions = [False] * (self.window_size - 1) + predictions
-        if len(padded_predictions) > n_rows:
-            padded_predictions = padded_predictions[:n_rows]
-        elif len(padded_predictions) < n_rows:
-            padded_predictions += [False] * (n_rows - len(padded_predictions))
-        df['pred'] = padded_predictions
-        return df        
-    
-    def create_file(self, input_file: str, output_file: str) -> None:
-        """
-        Saves the Pandas DataFrame to results to a new CSV file.
-        """
-
-        labeled_dataframe = self.process_csv_file(input_file)
-        labeled_dataframe.to_csv(output_file, index=False)
+        return sequence_predictions, time_step_predictions, sequence_mae, output_df, anomaly_intervals

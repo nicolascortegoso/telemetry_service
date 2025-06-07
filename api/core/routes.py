@@ -2,7 +2,7 @@ from fastapi import APIRouter, Response, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 
 from typing import Optional
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from src.core.vehicles import get_vehicle_classes
 from src.core.anomalies import get_anomaly_classes
@@ -13,35 +13,18 @@ from src.core.utils import introduce_anomalies
 from src.core.config import get_config
 
 from api.core.models import CreateSyntheticTelemetry
-from api.core.utils import create_csv_in_memory, return_csv_buffer
+from api.core.utils import create_csv_in_memory
 
 
 router = APIRouter()
 
 # Load configuration from environment variables
 config = get_config()
-input_dim = config['model']['input_dim']
-hidden_dim = config['model']['hidden_dim']
-num_layers = config['model']['num_layers']
-model_weights_path = config['paths']['model_weights']
-scaler_path = config['paths']['scaler']
-threshold_path = config['paths']['threshold']
-threshold_coefficient = config['threshold']['coefficient']
-window_size = config['model']['window_size']
+model_path = config['paths']['model_save_path']
+batch_size = config['inference']['batch_size']
 device = config['inference']['device']
 
-# Instantiate the anomaly detector
-detector = AnomalyDetector(
-    input_dim,
-    hidden_dim,
-    num_layers,
-    model_weights_path,
-    scaler_path,
-    threshold_path,
-    threshold_coefficient,
-    window_size,
-    device
-)
+detector = AnomalyDetector(model_path, batch_size, device)
 
 
 @router.post("/generate_dataset/", 
@@ -105,14 +88,19 @@ async def anomaly_detector(
     contents = await file.read()
     input_buffer = BytesIO(contents)
 
+    _, _, _, output_df, anomaly_intervals = detector.inference(input_buffer)
+    
     if output:
-        # Use decorated version of the method
-        buffer = return_csv_buffer(detector.process_csv_file)(input_buffer)
+        # Write DataFrame to a CSV buffer
+        buffer = StringIO()
+        output_df.to_csv(buffer, index=False)
+        buffer.seek(0)  # Important: reset the buffer position to the beginning
+        
+        # Send buffer as StreamingResponse
         return StreamingResponse(
-            buffer,
-            media_type="text/csv",
+        buffer,
+        media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={output}"}
         )
     else:
-        output = detector.anomaly_intervals(input_buffer)        
-        return {"anomaly_intervals": output}
+        return {"anomaly_intervals": anomaly_intervals}

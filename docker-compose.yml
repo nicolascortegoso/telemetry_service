@@ -42,6 +42,7 @@ services:
     profiles: ["manual"]
     working_dir: /app
     volumes:
+      - ./training:/app/training
       - ./data:/app/data
       - ./src:/app/src
       - ./logs:/app/logs
@@ -51,7 +52,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=.
-    command: python training/train.py
+    command: python training/main.py
 
   tensorboard:
     build:
@@ -60,7 +61,7 @@ services:
     ports:
       - "6006:6006"
     volumes:
-      - ./logs/tensorboard:/logs
+      - ./logs:/logs
 
   api:
     container_name: api

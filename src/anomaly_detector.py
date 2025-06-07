@@ -34,38 +34,29 @@ def main():
         default=None
     )
     
+    # Passed arguments
     args = parser.parse_args()
+    input_file = args.input
+    output_file = args.output
 
-    # Load configuration from environment variables
     config = get_config()
-    input_dim = config['model']['input_dim']
-    hidden_dim = config['model']['hidden_dim']
-    num_layers = config['model']['num_layers']
-    model_weights_path = config['paths']['model_weights']
-    scaler_path = config['paths']['scaler']
-    threshold_path = config['paths']['threshold']
-    threshold_coefficient = config['threshold']['coefficient']
-    window_size = config['model']['window_size']
+    model_path = config['paths']['model_save_path']
+    batch_size = config['inference']['batch_size']
     device = config['inference']['device']
 
-    detector = AnomalyDetector(
-        input_dim,
-        hidden_dim,
-        num_layers,
-        model_weights_path,
-        scaler_path,
-        threshold_path,
-        threshold_coefficient,
-        window_size,
-        device
-    )
+    detector = AnomalyDetector(model_path, batch_size, device)
 
-    if args.output:
-        detector.create_file(args.input, args.output)
+    _, _, _, dataframe, anomaly_intervals = detector.inference(input_file)
+
+    # Check if an output file path is provided
+    if output_file:
+        # If output_file is provided, save the DataFrame to a CSV file
+        dataframe.to_csv(output_file, index=False)
+        print(f'Saved CSV file to {output_file}')
+    
     else:
-        output = detector.anomaly_intervals(args.input)
-        # Explicit print for CLI
-        print(output)
+        # If no output_file is provided, print the anomaly_intervals instead
+        print(anomaly_intervals)
 
 
 if __name__ == "__main__":

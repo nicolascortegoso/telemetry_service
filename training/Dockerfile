@@ -11,4 +11,4 @@ COPY training/ /app/training/
 COPY src/ /app/src/
 
 # Entrypoint
-CMD ["python", "training/train.py"]
+CMD ["python", "training/main.py"]

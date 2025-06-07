@@ -3,7 +3,7 @@ vehicle:
   initial_speed: 80
 
 timeseries:  
-  minutes: 120
+  minutes: 360
   min_minutes: 60
 
 anomaly:
@@ -15,28 +15,26 @@ training:
   random_seed: 42
   epochs: 20
   batch_size: 64
+  window_sizes: [5, 7, 10, 12, 15, 20, 25, 30]
+  step_sizes: [1, 5, 7, 9]
 
 inference:
   device: cpu
+  batch_size: 64
+  threshold_percentile: 99.95
 
 model:
+  input_size: 3
   hidden_dim: 8
   num_layers: 1
-  input_dim: 3
-  window_size: 120
 
 paths:
   default_output_file_csv: synthetic_dataset.csv
-  model_weights: src/core/models/lstm_autoencoder.pt
-  scaler: src/core/models/scaler.pkl
-  threshold: src/core/models/threshold.json
-  logs_recons_errors: logs/reconstruction_errors.html
-  training_data: data/testing/test_Truck:80_120_WheelSlip:5:0.01.csv
-  validation_data: data/validation/val_Truck:80_120.csv
-
-threshold:
-  coefficient: 0.5
-
+  model_save_path: src/core/models/best_model.pth
+  log_dir: logs/fit
+  training_data: data/training/train_Truck:80_360.csv
+  validation_data: data/validation/val_Truck:80_360.csv
+  testing_data: data/testing/test_Truck:80_360_WheelSlip:5:0.01.csv
 
 endpoint_generate_dataset:
   summary: Synthetic dataset creation
