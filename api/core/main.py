@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.core.routes import router as generate_dataset
+from api.core.routes import router as services
 
 
 app = FastAPI(
@@ -8,4 +8,4 @@ app = FastAPI(
 )
 
 # Include routers
-app.include_router(generate_dataset, prefix="/api/v1", tags=["Available services"])
+app.include_router(services, prefix="/api/v1", tags=["Available services"])
